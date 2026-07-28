@@ -3,12 +3,11 @@
 
 #include <windows.h>
 #include <commctrl.h>
+#include <windowsx.h>
+#include <ole2.h>
 
 #define IDC_BUTTON 1001
 #define SampleWindowName L"CustomToolbox"
-
-#define ICON_WIDTH 20
-#define ICON_HEIGHT 20
 
 void MainWindow::setLogger(LOG_HANDLE* handle) {
 	logger = handle;
@@ -19,58 +18,138 @@ void MainWindow::setConfig(CONFIG_HANDLE* handle) {
 }
 
 LRESULT CALLBACK MainWindow::wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
-	static SCROLLINFO si;
+	static int index = -1;
+	static bool dragged = false;
 
 	switch (message) {
 	case WM_CREATE:
 		si.nPos = 0;
+		OleInitialize(NULL);
 		break;
-	case WM_COMMAND:
-		switch (LOWORD(wparam)) {
-		case IDC_BUTTON:
-			for (std::wstring effect : effects) {
-				logger->log(logger, effect.c_str());
+	case WM_DESTROY:
+
+		break;
+	case WM_LBUTTONDOWN: {
+		SetCapture(hwnd);
+		dragged = false;
+		int x = GET_X_LPARAM(lparam);
+		int y = GET_Y_LPARAM(lparam);
+		index = getIndexFromPosition(x, y);
+		break;
+	}
+	case WM_LBUTTONUP: {
+		
+		if (!dragged) {
+			if (index < 0 || index >= rawEffects.size()) break;
+			else {
+				edit_handle->call_edit_section([](EDIT_SECTION* edit) {
+					if (edit->create_object(rawEffects[index].name.c_str(), edit->info->layer, edit->info->frame, 30)) {
+						logger->log(logger, L"successfully created an object");
+					}
+					else {
+						if (edit->create_object(rawEffects[index].name.c_str(), edit->info->layer, ++edit->info->frame, 30)) {
+							logger->log(logger, L"successfully created an object");
+						}
+						else {
+							logger->log(logger, L"failed in creating an object");
+							--edit->info->frame;
+						}
+					}
+					});
 			}
-			// 編集セクションで処理を呼び出す
-			edit_handle->call_edit_section_param(&message, [](void* message, EDIT_SECTION* edit) {
-				// エイリアスデータからオブジェクトを作成
-				if (edit->create_object_from_alias(alias, edit->info->layer, edit->info->frame, 10)) {
-					logger->log(logger, L"create alias object");
+		}
+		else {
+			dragged = false;
+			edit_handle->call_edit_section([](EDIT_SECTION* edit) {
+				HWND parent = GetParent(MainWindow::hwnd);
+				RECT r;
+				GetWindowRect(parent, &r);
+				//std::wstring ws = std::to_wstring(r.left) + L" " + std::to_wstring(r.top) + L" " + std::to_wstring(r.right) + L" " + std::to_wstring(r.bottom);
+				//std::wstring ws2 = std::to_wstring(rect.left) + L" " + std::to_wstring(rect.top) + L" " + std::to_wstring(rect.right) + L" " + std::to_wstring(rect.bottom);
+				//logger->log(logger, ws.c_str());
+				//logger->log(logger, ws2.c_str());
+				POINT p;
+				GetCursorPos(&p);
+				ScreenToClient(MainWindow::hwnd, &p);
+				logger->log(logger, (std::to_wstring(p.x) + L" " + std::to_wstring(p.y)).c_str());
+				int layer, frame;
+				SendMessage(parent, WM_MOUSEMOVE, 0, MAKELPARAM(p.x, p.y));
+				logger->log(logger, std::to_wstring(edit->get_mouse_layer_frame(&layer, &frame)).c_str());
+				if (edit->create_object(rawEffects[index].name.c_str(), layer, frame, 30)) {
+					logger->log(logger, L"successfully created an object");
 				}
 				else {
-					logger->warn(logger, L"create alias failed");
+					logger->log(logger, L"failed in creating an object");
 				}
 				});
-			SetFocus(NULL); // ボタンのフォーカスを外す
-			return 0;
+		}
+		ReleaseCapture();
+		break;
+	}
+	case WM_MOUSEMOVE: {
+		if (!dragged) {
+			int x = GET_X_LPARAM(lparam);
+			int y = GET_Y_LPARAM(lparam);
+			if (getIndexFromPosition(x, y) != index && index >= 0 && index < rawEffects.size()) {
+				dragged = true;
+			}
+		}
+		else {
+			HWND parent = GetParent(MainWindow::hwnd);
+			POINT p;
+			GetCursorPos(&p);
+			ScreenToClient(MainWindow::hwnd, &p);
+			int layer, frame;
+			SendMessage(parent, WM_MOUSEMOVE, 0, MAKELPARAM(p.x, p.y));
 		}
 		break;
+	}
 	case WM_PAINT: {
 		//クライアント領域を取得し、行数、列数を計算する
-		RECT rect;
 		GetClientRect(hwnd, &rect);
-		int colNum = rect.right / ICON_WIDTH;
-		int rowNum = (effects.size() - 1) / colNum + 1;
+		int colNum = rect.right / iconWidth;
+		if (colNum <= 0) colNum = 1;
+		int rowNum = (rawEffects.size() - 1) / colNum + 1;
 		//SCROLLINFO構造体の情報を変更する
 		si.cbSize = sizeof(SCROLLINFO);
 		si.fMask = SIF_PAGE | SIF_RANGE | SIF_POS;
 		si.nMin = 0;
 		si.nMax = rowNum - 1;
-		si.nPage = rect.bottom / ICON_HEIGHT;
+		si.nPage = rect.bottom / iconHeight;
 		//SCROLLINFO構造体の変更を適用する
 		SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
-		//描画を行う
-		PAINTSTRUCT ps;
-		HDC hdc = BeginPaint(hwnd, &ps);
-		for (int i = 0; i < effects.size(); i++) {
+		//ちらつきを抑えるために、ダブルバッファリングのようなことを行う。まずはバッファを作成する。
+		hdc = GetDC(hwnd);
+		HBITMAP hBitmap = CreateCompatibleBitmap(hdc, iconWidth * colNum, iconHeight * rowNum);
+		HDC hBuffer = CreateCompatibleDC(hdc);
+		ReleaseDC(hwnd, hdc);
+		//バッファに描画を開始する
+		SelectObject(hBuffer, hBitmap);
+		COLORREF bgColor = getColorRef(config->get_color_code(config, "Background"));
+		HBRUSH hbrBackgound = CreateSolidBrush(bgColor);
+		RECT r = { 0, 0, iconWidth * colNum, iconHeight * rowNum };
+		FillRect(hBuffer, &r, hbrBackgound);
+		SetBkColor(hBuffer, bgColor);
+		HFONT hFont = CreateFont(min(iconWidth, iconHeight), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, NULL);
+		SelectObject(hBuffer, hFont);
+		for (int i = 0; i < rawEffects.size(); i++) {
 			int col = i % colNum;
 			int row = i / colNum;
-			SelectObject(hdc, CreateSolidBrush(0xff << (8 * (i % 3))));
-			Rectangle(hdc, ICON_WIDTH * col, ICON_HEIGHT * (row - si.nPos), ICON_WIDTH * (col + 1), ICON_HEIGHT * (row - si.nPos + 1));
-			DeleteObject(SelectObject(hdc, GetStockObject(WHITE_BRUSH)));
+			SetTextColor(hBuffer, RGB(255 *(rawEffects[i].type % 2), 255 * ((rawEffects[i].type / 2) % 2), 255 * ((rawEffects[i].type / 4) % 2)));
+			TextOut(hBuffer, iconWidth * col, iconHeight * row, rawEffects[i].name.c_str(), 1);
+			DeleteObject(SelectObject(hBuffer, GetStockObject(WHITE_BRUSH)));
 		}
-		Ellipse(hdc, 0, -si.nPos * ICON_HEIGHT, 100, 100 - si.nPos * ICON_HEIGHT);
+		DeleteObject(hFont);
+		//Ellipse(hBuffer, 0, 0, 100, 100 - si.nPos * iconHeight);
+		//画面に表示する
+		BeginPaint(hwnd, &ps);
+		FillRect(hdc, &rect, hbrBackgound);	//背景クリアはここでしてやる
+		BitBlt(hdc, 0, -iconHeight * si.nPos, iconWidth * colNum, iconHeight * rowNum, hBuffer, 0, 0, SRCCOPY);
 		EndPaint(hwnd, &ps);
+		//CreateしたものはDeleteする
+		DeleteObject(hbrBackgound);
+		DeleteObject(hBitmap);
+		DeleteDC(hBuffer);
 		return 0;
 	}
 	case WM_VSCROLL: {
@@ -121,6 +200,8 @@ LRESULT CALLBACK MainWindow::wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LP
 		SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
 		InvalidateRect(hwnd, NULL, TRUE);
 		break;
+	case WM_ERASEBKGND:		//背景が勝手に消されるとめっちゃちらつきます
+		return 1;
 	}
 	return DefWindowProc(hwnd, message, wparam, lparam);
 }
@@ -173,21 +254,52 @@ void MainWindow::registerPlugin(HOST_APP_TABLE* host) {
 
 	//エフェクト一覧をこの場で取得しようとしてもうまくいかなかったのでこうしてます
 	host->register_project_load_handler([](PROJECT_FILE* pf) {
-		effects.clear();
-		edit_handle->enum_effect_name(&effects, [](void* effects, LPCWSTR name, int type, int flag) {
-			((std::vector<std::wstring>*)effects)->push_back(name);
+		rawEffects.clear();
+		edit_handle->enum_effect_name(nullptr, [](void*, LPCWSTR name, int type, int flag) {
+			logger->log(logger, name);
+			rawEffects.push_back({name, type, flag});
 			InvalidateRect(hwnd, NULL, TRUE);
 			});
 		});
+
+	host->register_file_drop_handler(L"あ", L"cpp、hファイル\0*.cpp;*.h\0", [](EDIT_SECTION* edit, LPCWSTR file) {
+		MessageBox(hwnd, L"aaa", L"asdfasf", MB_OK);
+		int layer, frame;
+		edit->get_mouse_layer_frame(&layer, &frame);
+		logger->log(logger, (std::to_wstring(layer) + L" " + std::to_wstring(frame)).c_str());
+		});
+}
+
+int MainWindow::getIndexFromPosition(int x, int y) {
+	if (x < 0 || y < 0 || x > (rect.right / iconWidth) * iconWidth) return -1;
+	return x / iconWidth + (y / iconHeight + si.nPos) * (rect.right / iconWidth);
+}
+
+COLORREF MainWindow::getColorRef(int color) {
+	int r = color >> 16;
+	int g = (color >> 8) & 0xff;
+	int b = color & 0xff;
+	return RGB(r, g, b);
 }
 
 HWND MainWindow::hwnd = NULL;
+
+SCROLLINFO MainWindow::si;
+RECT MainWindow::rect;
+PAINTSTRUCT MainWindow::ps;
+HDC MainWindow::hdc = NULL;
 
 EDIT_HANDLE* MainWindow::edit_handle = nullptr;
 LOG_HANDLE* MainWindow::logger = nullptr;
 CONFIG_HANDLE* MainWindow::config = nullptr;
 
-std::vector<std::wstring> MainWindow::effects;
+std::vector<RawEffect> MainWindow::rawEffects;
+
+int MainWindow::iconHeight = 20;
+int MainWindow::iconWidth = 20;
+
+int MainWindow::index = -1;
+bool MainWindow::dragged = false;
 
 LPCSTR MainWindow::alias = R"(
 [Object]
