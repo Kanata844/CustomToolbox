@@ -38,7 +38,6 @@ LRESULT CALLBACK MainWindow::wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LP
 		break;
 	}
 	case WM_LBUTTONUP: {
-		
 		if (!dragged) {
 			if (index < 0 || index >= rawEffects.size()) break;
 			else {
@@ -61,25 +60,30 @@ LRESULT CALLBACK MainWindow::wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LP
 		else {
 			dragged = false;
 			edit_handle->call_edit_section([](EDIT_SECTION* edit) {
-				HWND parent = GetParent(MainWindow::hwnd);
-				RECT r;
-				GetWindowRect(parent, &r);
-				//std::wstring ws = std::to_wstring(r.left) + L" " + std::to_wstring(r.top) + L" " + std::to_wstring(r.right) + L" " + std::to_wstring(r.bottom);
-				//std::wstring ws2 = std::to_wstring(rect.left) + L" " + std::to_wstring(rect.top) + L" " + std::to_wstring(rect.right) + L" " + std::to_wstring(rect.bottom);
-				//logger->log(logger, ws.c_str());
-				//logger->log(logger, ws2.c_str());
 				POINT p;
 				GetCursorPos(&p);
-				ScreenToClient(MainWindow::hwnd, &p);
 				logger->log(logger, (std::to_wstring(p.x) + L" " + std::to_wstring(p.y)).c_str());
 				int layer, frame;
-				SendMessage(parent, WM_MOUSEMOVE, 0, MAKELPARAM(p.x, p.y));
 				logger->log(logger, std::to_wstring(edit->get_mouse_layer_frame(&layer, &frame)).c_str());
-				if (edit->create_object(rawEffects[index].name.c_str(), layer, frame, 30)) {
-					logger->log(logger, L"successfully created an object");
-				}
-				else {
-					logger->log(logger, L"failed in creating an object");
+				if (edit->pos_to_layer_frame(p.x, p.y, &layer, &frame)) {
+					auto nextObject = edit->find_object(layer, frame);
+					if (nextObject == nullptr) {
+						edit->create_object(rawEffects[index].name.c_str(), layer, frame, 60);
+					}
+					else {
+						auto nextStart = edit->get_object_layer_frame(nextObject).start;
+						if (nextStart > frame + 60) {
+							edit->create_object(rawEffects[index].name.c_str(), layer, frame, 60);
+						}
+						else if (nextStart > frame) {
+							edit->create_object(rawEffects[index].name.c_str(), layer, frame, nextStart - frame);
+						}
+						else {
+							if (rawEffects[index].flag == edit_handle->EFFECT_TYPE_FILTER) {
+								edit->create_effect(nextObject, rawEffects[index].name.c_str());
+							}
+						}
+					}
 				}
 				});
 		}
@@ -94,14 +98,6 @@ LRESULT CALLBACK MainWindow::wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LP
 				dragged = true;
 			}
 		}
-		else {
-			HWND parent = GetParent(MainWindow::hwnd);
-			POINT p;
-			GetCursorPos(&p);
-			ScreenToClient(MainWindow::hwnd, &p);
-			int layer, frame;
-			SendMessage(parent, WM_MOUSEMOVE, 0, MAKELPARAM(p.x, p.y));
-		}
 		break;
 	}
 	case WM_PAINT: {
@@ -115,7 +111,7 @@ LRESULT CALLBACK MainWindow::wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LP
 		si.fMask = SIF_PAGE | SIF_RANGE | SIF_POS;
 		si.nMin = 0;
 		si.nMax = rowNum - 1;
-		si.nPage = rect.bottom / iconHeight;
+		si.nPage = min(rect.bottom / iconHeight, si.nMax + 1);
 		//SCROLLINFO構造体の変更を適用する
 		SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
 		//ちらつきを抑えるために、ダブルバッファリングのようなことを行う。まずはバッファを作成する。
@@ -260,13 +256,6 @@ void MainWindow::registerPlugin(HOST_APP_TABLE* host) {
 			rawEffects.push_back({name, type, flag});
 			InvalidateRect(hwnd, NULL, TRUE);
 			});
-		});
-
-	host->register_file_drop_handler(L"あ", L"cpp、hファイル\0*.cpp;*.h\0", [](EDIT_SECTION* edit, LPCWSTR file) {
-		MessageBox(hwnd, L"aaa", L"asdfasf", MB_OK);
-		int layer, frame;
-		edit->get_mouse_layer_frame(&layer, &frame);
-		logger->log(logger, (std::to_wstring(layer) + L" " + std::to_wstring(frame)).c_str());
 		});
 }
 
