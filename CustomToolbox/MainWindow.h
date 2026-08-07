@@ -5,6 +5,7 @@
 #include "config2.h"
 
 #include "structs.h"
+#include "Effects.h"
 
 #include <vector>
 #include <string>
@@ -26,6 +27,9 @@ private:
 	static CONFIG_HANDLE* config;
 
 	static std::vector<RawEffect> rawEffects;
+	static Effects effects;
+	static std::vector<Effect> validEffects;
+
 	static LPCSTR alias;
 
 	static int iconWidth;

@@ -1,10 +1,14 @@
 #include "pch.h"
 #include "MainWindow.h"
 
+#include "SettingDialog.h"
+
 #include <windows.h>
 #include <commctrl.h>
 #include <windowsx.h>
 #include <ole2.h>
+
+#pragma comment(lib, "comctl32.lib")
 
 #define IDC_BUTTON 1001
 #define SampleWindowName L"CustomToolbox"
@@ -24,7 +28,7 @@ LRESULT CALLBACK MainWindow::wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LP
 	switch (message) {
 	case WM_CREATE:
 		si.nPos = 0;
-		OleInitialize(NULL);
+		InitCommonControls();
 		break;
 	case WM_DESTROY:
 
@@ -39,14 +43,14 @@ LRESULT CALLBACK MainWindow::wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LP
 	}
 	case WM_LBUTTONUP: {
 		if (!dragged) {
-			if (index < 0 || index >= rawEffects.size()) break;
+			if (index < 0 || index >= validEffects.size()) break;
 			else {
 				edit_handle->call_edit_section([](EDIT_SECTION* edit) {
-					if (edit->create_object(rawEffects[index].name.c_str(), edit->info->layer, edit->info->frame, 30)) {
+					if (edit->create_object(validEffects[index].name.c_str(), edit->info->layer, edit->info->frame, 30)) {
 						logger->log(logger, L"successfully created an object");
 					}
 					else {
-						if (edit->create_object(rawEffects[index].name.c_str(), edit->info->layer, ++edit->info->frame, 30)) {
+						if (edit->create_object(validEffects[index].name.c_str(), edit->info->layer, ++edit->info->frame, 30)) {
 							logger->log(logger, L"successfully created an object");
 						}
 						else {
@@ -68,19 +72,19 @@ LRESULT CALLBACK MainWindow::wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LP
 				if (edit->pos_to_layer_frame(p.x, p.y, &layer, &frame)) {
 					auto nextObject = edit->find_object(layer, frame);
 					if (nextObject == nullptr) {
-						edit->create_object(rawEffects[index].name.c_str(), layer, frame, 60);
+						edit->create_object(validEffects[index].name.c_str(), layer, frame, 60);
 					}
 					else {
 						auto nextStart = edit->get_object_layer_frame(nextObject).start;
 						if (nextStart > frame + 60) {
-							edit->create_object(rawEffects[index].name.c_str(), layer, frame, 60);
+							edit->create_object(validEffects[index].name.c_str(), layer, frame, 60);
 						}
 						else if (nextStart > frame) {
-							edit->create_object(rawEffects[index].name.c_str(), layer, frame, nextStart - frame);
+							edit->create_object(validEffects[index].name.c_str(), layer, frame, nextStart - frame);
 						}
 						else {
-							if (rawEffects[index].flag == edit_handle->EFFECT_TYPE_FILTER) {
-								edit->create_effect(nextObject, rawEffects[index].name.c_str());
+							if (validEffects[index].flag == edit_handle->EFFECT_TYPE_FILTER) {
+								edit->create_effect(nextObject, validEffects[index].name.c_str());
 							}
 						}
 					}
@@ -94,7 +98,7 @@ LRESULT CALLBACK MainWindow::wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LP
 		if (!dragged) {
 			int x = GET_X_LPARAM(lparam);
 			int y = GET_Y_LPARAM(lparam);
-			if (getIndexFromPosition(x, y) != index && index >= 0 && index < rawEffects.size()) {
+			if (getIndexFromPosition(x, y) != index && index >= 0 && index < validEffects.size()) {
 				dragged = true;
 			}
 		}
@@ -105,7 +109,7 @@ LRESULT CALLBACK MainWindow::wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LP
 		GetClientRect(hwnd, &rect);
 		int colNum = rect.right / iconWidth;
 		if (colNum <= 0) colNum = 1;
-		int rowNum = (rawEffects.size() - 1) / colNum + 1;
+		int rowNum = (validEffects.size() - 1) / colNum + 1;
 		//SCROLLINFO構造体の情報を変更する
 		si.cbSize = sizeof(SCROLLINFO);
 		si.fMask = SIF_PAGE | SIF_RANGE | SIF_POS;
@@ -128,11 +132,11 @@ LRESULT CALLBACK MainWindow::wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LP
 		SetBkColor(hBuffer, bgColor);
 		HFONT hFont = CreateFont(min(iconWidth, iconHeight), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, NULL);
 		SelectObject(hBuffer, hFont);
-		for (int i = 0; i < rawEffects.size(); i++) {
+		for (int i = 0; i < validEffects.size(); i++) {
 			int col = i % colNum;
 			int row = i / colNum;
-			SetTextColor(hBuffer, RGB(255 *(rawEffects[i].type % 2), 255 * ((rawEffects[i].type / 2) % 2), 255 * ((rawEffects[i].type / 4) % 2)));
-			TextOut(hBuffer, iconWidth * col, iconHeight * row, rawEffects[i].name.c_str(), 1);
+			SetTextColor(hBuffer, RGB(255 *(validEffects[i].type % 2), 255 * ((validEffects[i].type / 2) % 2), 255 * ((validEffects[i].type / 4) % 2)));
+			TextOut(hBuffer, iconWidth * col, iconHeight * row, validEffects[i].name.c_str(), 1);
 			DeleteObject(SelectObject(hBuffer, GetStockObject(WHITE_BRUSH)));
 		}
 		DeleteObject(hFont);
@@ -219,7 +223,7 @@ void MainWindow::registerPlugin(HOST_APP_TABLE* host) {
 		0,
 		SampleWindowName,
 		SampleWindowName,
-		WS_POPUP | WS_VSCROLL, // 親ウィンドウの指定無しでWS_CHILDが作れないので一旦WS_POPUPで作成しています
+		WS_POPUP | WS_VSCROLL | WS_EX_COMPOSITED, // 親ウィンドウの指定無しでWS_CHILDが作れないので一旦WS_POPUPで作成しています
 		CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
 		nullptr,
 		nullptr,
@@ -248,14 +252,21 @@ void MainWindow::registerPlugin(HOST_APP_TABLE* host) {
 	// 編集ハンドルを作成
 	edit_handle = host->create_edit_handle();
 
+	//設定ダイアログを登録
+	host->register_config_menu(L"CustomToolbox", [](HWND hwnd, HINSTANCE dll_hinst) {
+		SettingDialog::display(dll_hinst, hwnd);
+		});
+
 	//エフェクト一覧をこの場で取得しようとしてもうまくいかなかったのでこうしてます
 	host->register_project_load_handler([](PROJECT_FILE* pf) {
 		rawEffects.clear();
 		edit_handle->enum_effect_name(nullptr, [](void*, LPCWSTR name, int type, int flag) {
 			logger->log(logger, name);
 			rawEffects.push_back({name, type, flag});
-			InvalidateRect(hwnd, NULL, TRUE);
 			});
+		effects.init(rawEffects);
+		validEffects = effects.getValidEffects();
+		InvalidateRect(hwnd, NULL, TRUE);
 		});
 }
 
@@ -283,6 +294,8 @@ LOG_HANDLE* MainWindow::logger = nullptr;
 CONFIG_HANDLE* MainWindow::config = nullptr;
 
 std::vector<RawEffect> MainWindow::rawEffects;
+Effects MainWindow::effects;
+std::vector<Effect> MainWindow::validEffects;
 
 int MainWindow::iconHeight = 20;
 int MainWindow::iconWidth = 20;

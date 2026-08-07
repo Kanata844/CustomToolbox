@@ -13,5 +13,10 @@ struct Effect {
 	std::wstring name;
 	int type;
 	int flag;
-	std::string iconName;
+	std::wstring iconName;
+	bool valid;
+
+	bool operator<(const Effect& another) const {
+		return index < another.index;
+	}
 };
