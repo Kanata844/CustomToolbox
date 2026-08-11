@@ -28,6 +28,9 @@ LRESULT CALLBACK MainWindow::wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LP
 	switch (message) {
 	case WM_CREATE:
 		si.nPos = 0;
+		si.cbSize = sizeof(SCROLLINFO);
+		si.fMask = SIF_PAGE | SIF_RANGE | SIF_POS;
+		si.nMin = 0;
 		InitCommonControls();
 		break;
 	case WM_DESTROY:
@@ -111,13 +114,23 @@ LRESULT CALLBACK MainWindow::wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LP
 		if (colNum <= 0) colNum = 1;
 		int rowNum = (validEffects.size() - 1) / colNum + 1;
 		//SCROLLINFO構造体の情報を変更する
-		si.cbSize = sizeof(SCROLLINFO);
-		si.fMask = SIF_PAGE | SIF_RANGE | SIF_POS;
-		si.nMin = 0;
 		si.nMax = rowNum - 1;
 		si.nPage = min(rect.bottom / iconHeight, si.nMax + 1);
 		//SCROLLINFO構造体の変更を適用する
 		SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
+
+		//もしスクロールバーがない状態からある状態に変化した場合、再計算しないとおかしくなるので再計算する。
+		//絶対もっといいやり方があると思う。
+		GetClientRect(hwnd, &rect);
+		colNum = rect.right / iconWidth;
+		if (colNum <= 0) colNum = 1;
+		rowNum = (validEffects.size() - 1) / colNum + 1;
+		//SCROLLINFO構造体の情報を変更する
+		si.nMax = rowNum - 1;
+		si.nPage = min(rect.bottom / iconHeight, si.nMax + 1);
+		//SCROLLINFO構造体の変更を適用する
+		SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
+
 		//ちらつきを抑えるために、ダブルバッファリングのようなことを行う。まずはバッファを作成する。
 		hdc = GetDC(hwnd);
 		HBITMAP hBitmap = CreateCompatibleBitmap(hdc, iconWidth * colNum, iconHeight * rowNum);
@@ -253,8 +266,10 @@ void MainWindow::registerPlugin(HOST_APP_TABLE* host) {
 	edit_handle = host->create_edit_handle();
 
 	//設定ダイアログを登録
-	host->register_config_menu(L"CustomToolbox", [](HWND hwnd, HINSTANCE dll_hinst) {
-		SettingDialog::display(dll_hinst, hwnd);
+	host->register_config_menu(L"CustomToolbox", [](HWND, HINSTANCE dll_hinst) {
+		SettingDialog::display(dll_hinst, hwnd, &effects);
+		validEffects = effects.getValidEffects();
+		InvalidateRect(hwnd, NULL, TRUE);
 		});
 
 	//エフェクト一覧をこの場で取得しようとしてもうまくいかなかったのでこうしてます

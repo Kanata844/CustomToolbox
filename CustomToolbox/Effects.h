@@ -18,6 +18,8 @@ public:
 	//すべてのエフェクトの数を返す。
 	int allEffectsNum();
 
+	//第一引数で指定したインデックスのエフェクトを、第二引数で指定したインデックスまで移動させる。
+	bool changeIndex(int indexBefore, int indexAfter);
 	//指定したエフェクトのインデックスを設定する。エフェクトが存在したらtrueを、しなかったらfalseを返す。
 	bool setIndex(const RawEffect& effect, int index);
 	//対象のエフェクトが存在するかを調べ、存在した場合はインデックスを、しなかった場合は-1を返す。
@@ -27,6 +29,10 @@ public:
 
 	//有効なエフェクトをベクターで返す。
 	std::vector<Effect> getValidEffects();
+	//無効なエフェクトをベクターで返す。
+	std::vector<Effect> getInvalidEffects();
+	//すべてのエフェクトをベクターで返す。
+	std::vector<Effect> getAllEffects();
 
 	Effect& operator[](int index);
 

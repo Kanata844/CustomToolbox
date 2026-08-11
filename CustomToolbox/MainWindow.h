@@ -37,6 +37,7 @@ private:
 
 	static int index;
 	static bool dragged;
+
 public:
 
 	static void setLogger(LOG_HANDLE* handle);

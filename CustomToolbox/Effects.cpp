@@ -32,30 +32,34 @@ int Effects::allEffectsNum() {
 	return effects.size();
 }
 
-bool Effects::setIndex(const RawEffect& effect, int index) {
-	int currentIndex = lookUpEffect(effect);
-	if (currentIndex == -1) {
+bool Effects::changeIndex(int indexBefore, int indexAfter) {
+	if (indexBefore >= effects.size() || indexBefore < 0 || indexAfter >= effects.size() || indexAfter < 0) {
 		return false;
 	}
-	else if (currentIndex < index) {
-		Effect e = effects[currentIndex];
-		for (int i = currentIndex; i < index; i++) {
+	else if (indexBefore < indexAfter) {
+		Effect e = effects[indexBefore];
+		for (int i = indexBefore; i < indexAfter; i++) {
 			effects[i + 1].index--;
 			effects[i] = effects[i + 1];
 		}
-		e.index = index;
-		effects[index] = e;
+		e.index = indexAfter;
+		effects[indexAfter] = e;
 	}
-	else if (currentIndex > index) {
-		Effect e = effects[currentIndex];
-		for (int i = currentIndex; i > index; i--) {
-			effects[i - 1].index--;
+	else if (indexBefore > indexAfter) {
+		Effect e = effects[indexBefore];
+		for (int i = indexBefore; i > indexAfter; i--) {
+			effects[i - 1].index++;
 			effects[i] = effects[i - 1];
 		}
-		e.index = index;
-		effects[index] = e;
+		e.index = indexAfter;
+		effects[indexAfter] = e;
 	}
 	return true;
+}
+
+bool Effects::setIndex(const RawEffect& effect, int index) {
+	int currentIndex = lookUpEffect(effect);
+	return changeIndex(currentIndex, index);
 }
 
 int Effects::lookUpEffect(const RawEffect& effect) {
@@ -88,6 +92,20 @@ std::vector<Effect> Effects::getValidEffects() {
 		}
 	}
 	return vec;
+}
+
+std::vector<Effect> Effects::getInvalidEffects() {
+	std::vector<Effect> vec;
+	for (int i = 0; i < effects.size(); i++) {
+		if (!effects[i].valid) {
+			vec.push_back(effects[i]);
+		}
+	}
+	return vec;
+}
+
+std::vector<Effect> Effects::getAllEffects() {
+	return effects;
 }
 
 Effect& Effects::operator[](int index) {
