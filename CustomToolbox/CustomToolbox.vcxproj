@@ -155,6 +155,7 @@
     <ClInclude Include="SettingDialog.h" />
     <ClInclude Include="StringManager.h" />
     <ClInclude Include="structs.h" />
+    <ClInclude Include="Settings.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />

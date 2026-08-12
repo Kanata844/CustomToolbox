@@ -12,6 +12,8 @@
 #include <algorithm>
 #include <filesystem>
 
+#include "Settings.h"
+
 class MainWindow
 {
 private:
@@ -27,13 +29,14 @@ private:
 	static CONFIG_HANDLE* config;
 
 	static std::vector<RawEffect> rawEffects;
-	static Effects effects;
+	//static Effects effects;
 	static std::vector<Effect> validEffects;
 
 	static LPCSTR alias;
 
-	static int iconWidth;
-	static int iconHeight;
+	//static int iconWidth;
+	//static int iconHeight;
+	static Settings settings;
 
 	static int index;
 	static bool dragged;

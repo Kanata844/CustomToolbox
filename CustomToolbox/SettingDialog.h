@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Effects.h"
+#include "Settings.h"
 
 #include "resource.h"
 
@@ -24,14 +25,14 @@ private:
 	static void setEffects(HWND hList);
 	static void updateEffect(HWND hList, std::vector<int> indices);
 
-	static Effects* ep;
-	static Effects copy;
+	static Settings* sp;
+	static Effects copiedEffects;
 
 	//static bool validOnly;
 	static DisplayMode displayMode;
 
 	static bool initializing;
 public:
-	static void display(HINSTANCE hInst, HWND hWnd, Effects* pEffects);
+	static void display(HINSTANCE hInst, HWND hWnd, Settings* pSettings);
 };
 

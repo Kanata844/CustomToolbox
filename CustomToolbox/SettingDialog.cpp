@@ -6,12 +6,16 @@ LRESULT CALLBACK SettingDialog::DialogWndProc(HWND hWnd, UINT msg, WPARAM wparam
 	static HWND hRadioAll = NULL;
 	static HWND hRadioValid = NULL;
 	static HWND hRadioInvalid = NULL;
+	static HWND hEdit = NULL;
 	switch (msg) {
 	case WM_INITDIALOG: {
 		hList = GetDlgItem(hWnd, IDC_LIST1);
 		hRadioAll = GetDlgItem(hWnd, IDC_RADIO_ALL);
 		hRadioValid = GetDlgItem(hWnd, IDC_RADIO_VALID);
 		hRadioInvalid = GetDlgItem(hWnd, IDC_RADIO_INVALID);
+		hEdit = GetDlgItem(hWnd, IDC_EDIT1);
+
+		SetWindowText(hEdit, std::to_wstring(sp->iconWidth).c_str());
 
 		LONG lStyle = GetWindowLong(hList, GWL_STYLE);
 		lStyle |= LVS_REPORT;
@@ -70,21 +74,21 @@ LRESULT CALLBACK SettingDialog::DialogWndProc(HWND hWnd, UINT msg, WPARAM wparam
 					bool itemChecked = ListView_GetCheckState(hList, iItem);
 					switch (displayMode) {
 					case DisplayMode::ALL_EFFECTS: {
-						copy[iItem].valid = itemChecked;
+						copiedEffects[iItem].valid = itemChecked;
 						break;
 					}
 					case DisplayMode::VALID_EFFECTS: {
-						auto validEffects = copy.getValidEffects();
+						auto validEffects = copiedEffects.getValidEffects();
 						if (validEffects[iItem].valid != itemChecked) {
-							copy[validEffects[iItem].index].valid = false;
+							copiedEffects[validEffects[iItem].index].valid = false;
 							ListView_DeleteItem(hList, iItem);
 						}
 						break;
 					}
 					case DisplayMode::INVALID_EFFECTS: {
-						auto invalidEffects = copy.getInvalidEffects();
+						auto invalidEffects = copiedEffects.getInvalidEffects();
 						if (invalidEffects[iItem].valid != itemChecked) {
-							copy[invalidEffects[iItem].index].valid = true;
+							copiedEffects[invalidEffects[iItem].index].valid = true;
 							ListView_DeleteItem(hList, iItem);
 						}
 						break;
@@ -107,7 +111,7 @@ LRESULT CALLBACK SettingDialog::DialogWndProc(HWND hWnd, UINT msg, WPARAM wparam
 			else {
 				switch (displayMode) {
 				case DisplayMode::ALL_EFFECTS: {
-					if (copy.changeIndex(iItem, iItem - 1)) {
+					if (copiedEffects.changeIndex(iItem, iItem - 1)) {
 						updateEffect(hList, { iItem, iItem - 1 });
 						ListView_SetItemState(hList, iItem, NULL, LVIS_SELECTED);
 						ListView_SetItemState(hList, iItem - 1, LVIS_SELECTED, LVIS_SELECTED);
@@ -119,8 +123,8 @@ LRESULT CALLBACK SettingDialog::DialogWndProc(HWND hWnd, UINT msg, WPARAM wparam
 					if (iItem == 0) {
 						break;
 					}
-					auto validEffects = copy.getValidEffects();
-					if (copy.changeIndex(validEffects[iItem].index, validEffects[iItem - 1].index)) {
+					auto validEffects = copiedEffects.getValidEffects();
+					if (copiedEffects.changeIndex(validEffects[iItem].index, validEffects[iItem - 1].index)) {
 						updateEffect(hList, { iItem, iItem - 1 });
 						ListView_SetItemState(hList, iItem, NULL, LVIS_SELECTED);
 						ListView_SetItemState(hList, iItem - 1, LVIS_SELECTED, LVIS_SELECTED);
@@ -132,8 +136,8 @@ LRESULT CALLBACK SettingDialog::DialogWndProc(HWND hWnd, UINT msg, WPARAM wparam
 					if (iItem == 0) {
 						break;
 					}
-					auto invalidEffects = copy.getInvalidEffects();
-					if (copy.changeIndex(invalidEffects[iItem].index, invalidEffects[iItem - 1].index)) {
+					auto invalidEffects = copiedEffects.getInvalidEffects();
+					if (copiedEffects.changeIndex(invalidEffects[iItem].index, invalidEffects[iItem - 1].index)) {
 						updateEffect(hList, { iItem, iItem - 1 });
 						ListView_SetItemState(hList, iItem, NULL, LVIS_SELECTED);
 						ListView_SetItemState(hList, iItem - 1, LVIS_SELECTED, LVIS_SELECTED);
@@ -142,7 +146,7 @@ LRESULT CALLBACK SettingDialog::DialogWndProc(HWND hWnd, UINT msg, WPARAM wparam
 					break;
 				}
 				}
-				
+
 			}
 			break;
 		}
@@ -154,7 +158,7 @@ LRESULT CALLBACK SettingDialog::DialogWndProc(HWND hWnd, UINT msg, WPARAM wparam
 			else {
 				switch (displayMode) {
 				case DisplayMode::ALL_EFFECTS: {
-					if (copy.changeIndex(iItem, iItem + 1)) {
+					if (copiedEffects.changeIndex(iItem, iItem + 1)) {
 						updateEffect(hList, { iItem, iItem + 1 });;
 						ListView_SetItemState(hList, iItem, NULL, LVIS_SELECTED);
 						ListView_SetItemState(hList, iItem + 1, LVIS_SELECTED, LVIS_SELECTED);
@@ -163,11 +167,11 @@ LRESULT CALLBACK SettingDialog::DialogWndProc(HWND hWnd, UINT msg, WPARAM wparam
 					break;
 				}
 				case DisplayMode::VALID_EFFECTS: {
-					auto validEffects = copy.getValidEffects();
+					auto validEffects = copiedEffects.getValidEffects();
 					if (iItem >= validEffects.size() - 1) {
 						break;
 					}
-					if (copy.changeIndex(validEffects[iItem].index, validEffects[iItem + 1].index)) {
+					if (copiedEffects.changeIndex(validEffects[iItem].index, validEffects[iItem + 1].index)) {
 						updateEffect(hList, { iItem, iItem + 1 });
 						ListView_SetItemState(hList, iItem, NULL, LVIS_SELECTED);
 						ListView_SetItemState(hList, iItem + 1, LVIS_SELECTED, LVIS_SELECTED);
@@ -176,11 +180,11 @@ LRESULT CALLBACK SettingDialog::DialogWndProc(HWND hWnd, UINT msg, WPARAM wparam
 					break;
 				}
 				case DisplayMode::INVALID_EFFECTS: {
-					auto invalidEffects = copy.getInvalidEffects();
+					auto invalidEffects = copiedEffects.getInvalidEffects();
 					if (iItem >= invalidEffects.size() - 1) {
 						break;
 					}
-					if (copy.changeIndex(invalidEffects[iItem].index, invalidEffects[iItem + 1].index)) {
+					if (copiedEffects.changeIndex(invalidEffects[iItem].index, invalidEffects[iItem + 1].index)) {
 						updateEffect(hList, { iItem, iItem + 1 });
 						ListView_SetItemState(hList, iItem, NULL, LVIS_SELECTED);
 						ListView_SetItemState(hList, iItem + 1, LVIS_SELECTED, LVIS_SELECTED);
@@ -189,7 +193,7 @@ LRESULT CALLBACK SettingDialog::DialogWndProc(HWND hWnd, UINT msg, WPARAM wparam
 					break;
 				}
 				}
-				
+
 			}
 			break;
 		}
@@ -208,10 +212,15 @@ LRESULT CALLBACK SettingDialog::DialogWndProc(HWND hWnd, UINT msg, WPARAM wparam
 			setEffects(hList);
 			break;
 		}
-		case IDOK:
-			*ep = copy;
+		case IDOK: {
+			sp->effects = copiedEffects;
+			int input = GetDlgItemInt(hWnd, IDC_EDIT1, NULL, FALSE);
+			if (input > 0) {
+				sp->iconHeight = sp->iconWidth = input;
+			}
 			EndDialog(hWnd, IDOK);
 			break;
+		}
 		case IDCANCEL:
 			EndDialog(hWnd, IDCANCEL);
 			break;
@@ -222,7 +231,7 @@ LRESULT CALLBACK SettingDialog::DialogWndProc(HWND hWnd, UINT msg, WPARAM wparam
 }
 
 void SettingDialog::setEffects(HWND hList) {
-	if (!ep) return;
+	if (!sp) return;
 
 	initializing = true;
 
@@ -236,13 +245,13 @@ void SettingDialog::setEffects(HWND hList) {
 
 	switch(displayMode){
 	case DisplayMode::ALL_EFFECTS:
-		effects = copy.getAllEffects();
+		effects = copiedEffects.getAllEffects();
 		break;
 	case DisplayMode::VALID_EFFECTS:
-		effects = copy.getValidEffects();
+		effects = copiedEffects.getValidEffects();
 		break;
 	case DisplayMode::INVALID_EFFECTS:
-		effects = copy.getInvalidEffects();
+		effects = copiedEffects.getInvalidEffects();
 		break;
 	}
 
@@ -278,15 +287,15 @@ void SettingDialog::updateEffect(HWND hList, std::vector<int> indices) {
 
 	switch (displayMode) {
 	case DisplayMode::ALL_EFFECTS: {
-		effects = copy.getAllEffects();
+		effects = copiedEffects.getAllEffects();
 		break;
 	}
 	case DisplayMode::VALID_EFFECTS: {
-		effects = copy.getValidEffects();
+		effects = copiedEffects.getValidEffects();
 		break;
 	}
 	case DisplayMode::INVALID_EFFECTS: {
-		effects = copy.getInvalidEffects();
+		effects = copiedEffects.getInvalidEffects();
 		break;
 	}
 	}
@@ -312,14 +321,14 @@ void SettingDialog::updateEffect(HWND hList, std::vector<int> indices) {
 	
 }
 
-void SettingDialog::display(HINSTANCE hInst, HWND hWnd, Effects* pEffects) {
-	ep = pEffects;
-	copy = *ep;
+void SettingDialog::display(HINSTANCE hInst, HWND hWnd, Settings* pSettings) {
+	sp = pSettings;
+	copiedEffects = sp->effects;
 	DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG1), hWnd, DialogWndProc);
 }
 
-Effects* SettingDialog::ep = nullptr;
-Effects SettingDialog::copy;
+Settings* SettingDialog::sp = nullptr;
+Effects SettingDialog::copiedEffects;
 bool SettingDialog::initializing = false;
 //bool SettingDialog::validOnly = false;
 DisplayMode SettingDialog::displayMode = DisplayMode::ALL_EFFECTS;

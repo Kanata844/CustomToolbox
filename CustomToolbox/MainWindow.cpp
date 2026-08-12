@@ -31,6 +31,10 @@ LRESULT CALLBACK MainWindow::wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LP
 		si.cbSize = sizeof(SCROLLINFO);
 		si.fMask = SIF_PAGE | SIF_RANGE | SIF_POS;
 		si.nMin = 0;
+
+		settings.iconHeight = 20;
+		settings.iconWidth = 20;
+
 		InitCommonControls();
 		break;
 	case WM_DESTROY:
@@ -110,46 +114,46 @@ LRESULT CALLBACK MainWindow::wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LP
 	case WM_PAINT: {
 		//クライアント領域を取得し、行数、列数を計算する
 		GetClientRect(hwnd, &rect);
-		int colNum = rect.right / iconWidth;
+		int colNum = rect.right / settings.iconWidth;
 		if (colNum <= 0) colNum = 1;
 		int rowNum = (validEffects.size() - 1) / colNum + 1;
 		//SCROLLINFO構造体の情報を変更する
 		si.nMax = rowNum - 1;
-		si.nPage = min(rect.bottom / iconHeight, si.nMax + 1);
+		si.nPage = min(rect.bottom / settings.iconHeight, si.nMax + 1);
 		//SCROLLINFO構造体の変更を適用する
 		SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
 
 		//もしスクロールバーがない状態からある状態に変化した場合、再計算しないとおかしくなるので再計算する。
 		//絶対もっといいやり方があると思う。
 		GetClientRect(hwnd, &rect);
-		colNum = rect.right / iconWidth;
+		colNum = rect.right / settings.iconWidth;
 		if (colNum <= 0) colNum = 1;
 		rowNum = (validEffects.size() - 1) / colNum + 1;
 		//SCROLLINFO構造体の情報を変更する
 		si.nMax = rowNum - 1;
-		si.nPage = min(rect.bottom / iconHeight, si.nMax + 1);
+		si.nPage = min(rect.bottom / settings.iconHeight, si.nMax + 1);
 		//SCROLLINFO構造体の変更を適用する
 		SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
 
 		//ちらつきを抑えるために、ダブルバッファリングのようなことを行う。まずはバッファを作成する。
 		hdc = GetDC(hwnd);
-		HBITMAP hBitmap = CreateCompatibleBitmap(hdc, iconWidth * colNum, iconHeight * rowNum);
+		HBITMAP hBitmap = CreateCompatibleBitmap(hdc, settings.iconWidth * colNum, settings.iconHeight * rowNum);
 		HDC hBuffer = CreateCompatibleDC(hdc);
 		ReleaseDC(hwnd, hdc);
 		//バッファに描画を開始する
 		SelectObject(hBuffer, hBitmap);
 		COLORREF bgColor = getColorRef(config->get_color_code(config, "Background"));
 		HBRUSH hbrBackgound = CreateSolidBrush(bgColor);
-		RECT r = { 0, 0, iconWidth * colNum, iconHeight * rowNum };
+		RECT r = { 0, 0, settings.iconWidth * colNum, settings.iconHeight * rowNum };
 		FillRect(hBuffer, &r, hbrBackgound);
 		SetBkColor(hBuffer, bgColor);
-		HFONT hFont = CreateFont(min(iconWidth, iconHeight), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, NULL);
+		HFONT hFont = CreateFont(min(settings.iconWidth, settings.iconHeight), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, NULL);
 		SelectObject(hBuffer, hFont);
 		for (int i = 0; i < validEffects.size(); i++) {
 			int col = i % colNum;
 			int row = i / colNum;
 			SetTextColor(hBuffer, RGB(255 *(validEffects[i].type % 2), 255 * ((validEffects[i].type / 2) % 2), 255 * ((validEffects[i].type / 4) % 2)));
-			TextOut(hBuffer, iconWidth * col, iconHeight * row, validEffects[i].name.c_str(), 1);
+			TextOut(hBuffer, settings.iconWidth * col, settings.iconHeight * row, validEffects[i].name.c_str(), 1);
 			DeleteObject(SelectObject(hBuffer, GetStockObject(WHITE_BRUSH)));
 		}
 		DeleteObject(hFont);
@@ -157,7 +161,7 @@ LRESULT CALLBACK MainWindow::wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LP
 		//画面に表示する
 		BeginPaint(hwnd, &ps);
 		FillRect(hdc, &rect, hbrBackgound);	//背景クリアはここでしてやる
-		BitBlt(hdc, 0, -iconHeight * si.nPos, iconWidth * colNum, iconHeight * rowNum, hBuffer, 0, 0, SRCCOPY);
+		BitBlt(hdc, 0, -settings.iconHeight * si.nPos, settings.iconWidth * colNum, settings.iconHeight * rowNum, hBuffer, 0, 0, SRCCOPY);
 		EndPaint(hwnd, &ps);
 		//CreateしたものはDeleteする
 		DeleteObject(hbrBackgound);
@@ -267,8 +271,8 @@ void MainWindow::registerPlugin(HOST_APP_TABLE* host) {
 
 	//設定ダイアログを登録
 	host->register_config_menu(L"CustomToolbox", [](HWND, HINSTANCE dll_hinst) {
-		SettingDialog::display(dll_hinst, hwnd, &effects);
-		validEffects = effects.getValidEffects();
+		SettingDialog::display(dll_hinst, hwnd, &settings);
+		validEffects = settings.effects.getValidEffects();
 		InvalidateRect(hwnd, NULL, TRUE);
 		});
 
@@ -279,15 +283,15 @@ void MainWindow::registerPlugin(HOST_APP_TABLE* host) {
 			logger->log(logger, name);
 			rawEffects.push_back({name, type, flag});
 			});
-		effects.init(rawEffects);
-		validEffects = effects.getValidEffects();
+		settings.effects.init(rawEffects);
+		validEffects = settings.effects.getValidEffects();
 		InvalidateRect(hwnd, NULL, TRUE);
 		});
 }
 
 int MainWindow::getIndexFromPosition(int x, int y) {
-	if (x < 0 || y < 0 || x > (rect.right / iconWidth) * iconWidth) return -1;
-	return x / iconWidth + (y / iconHeight + si.nPos) * (rect.right / iconWidth);
+	if (x < 0 || y < 0 || x > (rect.right / settings.iconWidth) * settings.iconWidth) return -1;
+	return x / settings.iconWidth + (y / settings.iconHeight + si.nPos) * (rect.right / settings.iconWidth);
 }
 
 COLORREF MainWindow::getColorRef(int color) {
@@ -309,11 +313,13 @@ LOG_HANDLE* MainWindow::logger = nullptr;
 CONFIG_HANDLE* MainWindow::config = nullptr;
 
 std::vector<RawEffect> MainWindow::rawEffects;
-Effects MainWindow::effects;
+//Effects MainWindow::effects;
 std::vector<Effect> MainWindow::validEffects;
 
-int MainWindow::iconHeight = 20;
-int MainWindow::iconWidth = 20;
+//int MainWindow::iconHeight = 20;
+//int MainWindow::iconWidth = 20;
+
+Settings MainWindow::settings;
 
 int MainWindow::index = -1;
 bool MainWindow::dragged = false;
