@@ -24,6 +24,8 @@ private:
 	static PAINTSTRUCT ps;		//BeginPaintするときはこれを使う
 	static HDC hdc;				//このウィンドウのデバイスコンテキストはここに収納
 
+	static std::wstring pluginDir;
+
 	static EDIT_HANDLE* edit_handle;
 	static LOG_HANDLE* logger;
 	static CONFIG_HANDLE* config;
@@ -45,6 +47,8 @@ public:
 
 	static void setLogger(LOG_HANDLE* handle);
 	static void setConfig(CONFIG_HANDLE* handle);
+
+	static void initDLL(HINSTANCE hInstDLL);
 
 	static LRESULT CALLBACK wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
 	static void registerPlugin(HOST_APP_TABLE* host);

@@ -321,10 +321,10 @@ void SettingDialog::updateEffect(HWND hList, std::vector<int> indices) {
 	
 }
 
-void SettingDialog::display(HINSTANCE hInst, HWND hWnd, Settings* pSettings) {
+INT_PTR SettingDialog::display(HINSTANCE hInst, HWND hWnd, Settings* pSettings) {
 	sp = pSettings;
 	copiedEffects = sp->effects;
-	DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG1), hWnd, DialogWndProc);
+	return DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG1), hWnd, DialogWndProc);
 }
 
 Settings* SettingDialog::sp = nullptr;

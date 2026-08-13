@@ -11,6 +11,8 @@ class Effects
 public:
 	//RawEffectのベクターをもとに初期化する。
 	void init(std::vector<RawEffect> rawEffects);
+	//Effectのベクターをもとに初期化する。
+	void init(std::vector<Effect> effects);
 	//有効なエフェクトの数を返す。
 	int validEffectsNum();
 	//無効なエフェクトの数を返す。

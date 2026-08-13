@@ -1,6 +1,12 @@
 #include "pch.h"
 #include "Effects.h"
 
+void Effects::init(std::vector<Effect> e) {
+	effects.clear();
+	effects = e;
+	sort();
+}
+
 void Effects::init(std::vector<RawEffect> rawEffects) {
 	for (int i = 0; i < rawEffects.size(); i++) {
 		addEffect(rawEffects[i]);

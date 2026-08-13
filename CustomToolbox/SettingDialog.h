@@ -28,11 +28,10 @@ private:
 	static Settings* sp;
 	static Effects copiedEffects;
 
-	//static bool validOnly;
 	static DisplayMode displayMode;
 
 	static bool initializing;
 public:
-	static void display(HINSTANCE hInst, HWND hWnd, Settings* pSettings);
+	static INT_PTR display(HINSTANCE hInst, HWND hWnd, Settings* pSettings);
 };
 

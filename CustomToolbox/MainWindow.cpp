@@ -2,6 +2,7 @@
 #include "MainWindow.h"
 
 #include "SettingDialog.h"
+#include "SettingsManager.h"
 
 #include <windows.h>
 #include <commctrl.h>
@@ -19,6 +20,13 @@ void MainWindow::setLogger(LOG_HANDLE* handle) {
 
 void MainWindow::setConfig(CONFIG_HANDLE* handle) {
 	config = handle;
+}
+
+void MainWindow::initDLL(HINSTANCE hInstDLL) {
+	wchar_t path[MAX_PATH];
+	GetModuleFileName(hInstDLL, path, MAX_PATH);
+	std::filesystem::path modulePath = path;
+	pluginDir = modulePath.parent_path().wstring();
 }
 
 LRESULT CALLBACK MainWindow::wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
@@ -53,11 +61,11 @@ LRESULT CALLBACK MainWindow::wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LP
 			if (index < 0 || index >= validEffects.size()) break;
 			else {
 				edit_handle->call_edit_section([](EDIT_SECTION* edit) {
-					if (edit->create_object(validEffects[index].name.c_str(), edit->info->layer, edit->info->frame, 30)) {
+					if (edit->create_object(validEffects[index].name.c_str(), edit->info->layer, edit->info->frame, 60)) {
 						logger->log(logger, L"successfully created an object");
 					}
 					else {
-						if (edit->create_object(validEffects[index].name.c_str(), edit->info->layer, ++edit->info->frame, 30)) {
+						if (edit->create_object(validEffects[index].name.c_str(), edit->info->layer, ++edit->info->frame, 60)) {
 							logger->log(logger, L"successfully created an object");
 						}
 						else {
@@ -116,7 +124,7 @@ LRESULT CALLBACK MainWindow::wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LP
 		GetClientRect(hwnd, &rect);
 		int colNum = rect.right / settings.iconWidth;
 		if (colNum <= 0) colNum = 1;
-		int rowNum = (validEffects.size() - 1) / colNum + 1;
+		int rowNum = max((validEffects.size() - 1), 0) / colNum + 1;
 		//SCROLLINFO構造体の情報を変更する
 		si.nMax = rowNum - 1;
 		si.nPage = min(rect.bottom / settings.iconHeight, si.nMax + 1);
@@ -128,7 +136,7 @@ LRESULT CALLBACK MainWindow::wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LP
 		GetClientRect(hwnd, &rect);
 		colNum = rect.right / settings.iconWidth;
 		if (colNum <= 0) colNum = 1;
-		rowNum = (validEffects.size() - 1) / colNum + 1;
+		rowNum = max((validEffects.size() - 1), 0) / colNum + 1;
 		//SCROLLINFO構造体の情報を変更する
 		si.nMax = rowNum - 1;
 		si.nPage = min(rect.bottom / settings.iconHeight, si.nMax + 1);
@@ -271,9 +279,15 @@ void MainWindow::registerPlugin(HOST_APP_TABLE* host) {
 
 	//設定ダイアログを登録
 	host->register_config_menu(L"CustomToolbox", [](HWND, HINSTANCE dll_hinst) {
-		SettingDialog::display(dll_hinst, hwnd, &settings);
-		validEffects = settings.effects.getValidEffects();
-		InvalidateRect(hwnd, NULL, TRUE);
+		if (SettingDialog::display(dll_hinst, hwnd, &settings) == IDOK) {
+			
+			if (!SettingsManager::saveToFile(&settings, pluginDir + L"/CustomToolbox.json")) {
+				logger->log(logger, (pluginDir + L"/CustomToolbox.json").c_str());
+				MessageBox(hwnd, L"設定の保存に失敗しました", L"CustomToolbox", MB_OK);
+			}
+			validEffects = settings.effects.getValidEffects();
+			InvalidateRect(hwnd, NULL, TRUE);
+		}
 		});
 
 	//エフェクト一覧をこの場で取得しようとしてもうまくいかなかったのでこうしてます
@@ -283,7 +297,8 @@ void MainWindow::registerPlugin(HOST_APP_TABLE* host) {
 			logger->log(logger, name);
 			rawEffects.push_back({name, type, flag});
 			});
-		settings.effects.init(rawEffects);
+		SettingsManager::loadFromFile(&settings, pluginDir + L"/CustomToolbox.json");
+		//settings.effects.init(rawEffects);
 		validEffects = settings.effects.getValidEffects();
 		InvalidateRect(hwnd, NULL, TRUE);
 		});
@@ -307,6 +322,8 @@ SCROLLINFO MainWindow::si;
 RECT MainWindow::rect;
 PAINTSTRUCT MainWindow::ps;
 HDC MainWindow::hdc = NULL;
+
+std::wstring MainWindow::pluginDir;
 
 EDIT_HANDLE* MainWindow::edit_handle = nullptr;
 LOG_HANDLE* MainWindow::logger = nullptr;
