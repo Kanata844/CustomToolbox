@@ -80,6 +80,8 @@ int Effects::lookUpEffect(const RawEffect& effect) {
 }
 
 int Effects::addEffect(const RawEffect& effect, bool valid) {
+	if (lookUpEffect(effect) >= 0) return -1;
+
 	Effect e = {};
 	e.name = effect.name;
 	e.type = effect.type;

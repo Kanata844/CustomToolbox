@@ -292,12 +292,11 @@ void MainWindow::registerPlugin(HOST_APP_TABLE* host) {
 
 	//エフェクト一覧をこの場で取得しようとしてもうまくいかなかったのでこうしてます
 	host->register_project_load_handler([](PROJECT_FILE* pf) {
-		rawEffects.clear();
+		SettingsManager::loadFromFile(&settings, pluginDir + L"/CustomToolbox.json");
 		edit_handle->enum_effect_name(nullptr, [](void*, LPCWSTR name, int type, int flag) {
 			logger->log(logger, name);
-			rawEffects.push_back({name, type, flag});
+			settings.effects.addEffect({ name, type, flag });
 			});
-		SettingsManager::loadFromFile(&settings, pluginDir + L"/CustomToolbox.json");
 		//settings.effects.init(rawEffects);
 		validEffects = settings.effects.getValidEffects();
 		InvalidateRect(hwnd, NULL, TRUE);

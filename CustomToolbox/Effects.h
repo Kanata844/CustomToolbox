@@ -27,6 +27,7 @@ public:
 	//対象のエフェクトが存在するかを調べ、存在した場合はインデックスを、しなかった場合は-1を返す。
 	int lookUpEffect(const RawEffect& effect);
 	//エフェクトを追加し、そのインデックスを返す。第二引数にfalseを指定すると、無効化された状態で追加する。
+	//すでにそのエフェクトが存在するときは、-1を返す。
 	int addEffect(const RawEffect& effect, bool valid = true);
 
 	//有効なエフェクトをベクターで返す。

@@ -32,6 +32,8 @@ bool SettingsManager::saveToFile(Settings* sp, std::wstring fileName) {
 
 bool SettingsManager::loadFromFile(Settings* sp, std::wstring fileName) {
 	std::ifstream ifs(fileName);
+	if (!ifs.is_open()) return false;
+
 	json j_settings;
 	ifs >> j_settings;
 
@@ -51,5 +53,5 @@ bool SettingsManager::loadFromFile(Settings* sp, std::wstring fileName) {
 	}
 	sp->effects.init(effects);
 
-	return false;
+	return true;
 }
