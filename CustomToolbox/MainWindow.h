@@ -1,8 +1,8 @@
 #pragma once
 
-#include "plugin2.h"
-#include "logger2.h"
-#include "config2.h"
+#include <SDK/plugin2.h>
+#include <SDK/logger2.h>
+#include <SDK/config2.h>
 
 #include "structs.h"
 #include "Effects.h"

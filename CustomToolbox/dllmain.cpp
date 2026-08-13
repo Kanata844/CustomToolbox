@@ -7,9 +7,9 @@
 #include <windows.h>
 #include <commctrl.h>
 
-#include "plugin2.h"
-#include "logger2.h" // ログ出力 
-#include "config2.h" // 設定関連
+#include <SDK/plugin2.h>
+#include <SDK/logger2.h> // ログ出力 
+#include <SDK/config2.h> // 設定関連
 
 #include "MainWindow.h"
 
