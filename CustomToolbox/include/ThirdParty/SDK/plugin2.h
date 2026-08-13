@@ -415,7 +415,7 @@ struct EDIT_SECTION {
 	// effect	: 対象のエフェクト名 (エイリアスファイルのeffect.nameの値)
 	//			  同じエフェクトが複数ある場合は":n"のサフィックスでインデックス指定出来ます (nは0からの番号)
 	// item		: 対象のトラックバー項目の名称 (エイリアスファイルのキーの名称)
-	// frame	: 取得対象のフレーム番号 ※少数部でフレーム間の位置を指定出来ます
+	// frame	: 取得対象のフレーム番号 ※小数部でフレーム間の位置を指定出来ます
 	// value	: トラックバー項目の値の格納先へのポインタ
 	// 戻り値	: 設定出来た場合はtrue (対象が見つからない場合は失敗します)
 	bool (*get_object_track_value)(OBJECT_HANDLE object, LPCWSTR effect, LPCWSTR item, double frame, double* value);
@@ -540,7 +540,7 @@ struct EDIT_SECTION {
 	// ※フィルタプラグインから呼び出した場合は処理対象のシーンのオブジェクトのみ取得出来ます
 	// effect	: エフェクトのハンドル
 	// item		: 対象のトラックバー項目の名称 (エイリアスファイルのキーの名称)
-	// frame	: 取得対象のフレーム番号 ※少数部でフレーム間の位置を指定出来ます
+	// frame	: 取得対象のフレーム番号 ※小数部でフレーム間の位置を指定出来ます
 	// value	: トラックバー項目の値の格納先へのポインタ
 	// 戻り値	: 設定出来た場合はtrue (対象が見つからない場合は失敗します)
 	bool (*get_effect_track_value)(EFFECT_HANDLE effect, LPCWSTR item, double frame, double* value);
@@ -578,6 +578,7 @@ struct EDIT_SECTION {
 	// オブジェクトにエフェクトを追加します (call_read_section利用不可)
 	// object	: エフェクトを追加するオブジェクトのハンドル
 	// effect	: 追加するエフェクト名 (エイリアスファイルのeffect.nameの値)
+	//			: ※エフェクトが入出力項目(図形や標準描画等)の場合は差し替えになります
 	// 戻り値	: 追加したエフェクトのハンドル (追加出来ない場合はnullptrを返却)
 	//			  ※エフェクトハンドルはエフェクトが破棄されるかコールバック処理の終了まで有効
 	EFFECT_HANDLE (*create_effect)(OBJECT_HANDLE object, LPCWSTR effect);
@@ -600,12 +601,78 @@ struct EDIT_SECTION {
 	// 戻り値	: 削除出来た場合はtrue
 	bool (*delete_object_section)(OBJECT_HANDLE object, int section);
 
-	// オブジェクトの中間点(区間)を移動します (call_read_section利用不可)
-	// object	: 中間点を移動するオブジェクトのハンドル
-	// section	: 移動する中間点の区間の番号 (開始位置が中間点の区間番号)
+	// オブジェクトの区間の開始位置を移動します (call_read_section利用不可)
+	// ※移動する区間番号(section)が区間数(最終区間+1)の場合は終了点を移動します
+	// object	: 区間を移動するオブジェクトのハンドル
+	// section	: 移動する区間の番号 (0～区間数の値)
 	// frame	: 移動先のフレーム番号 ※区間を跨ぐ移動は出来ません
 	// 戻り値	: 移動出来た場合はtrue
 	bool (*move_object_section)(OBJECT_HANDLE object, int section, int frame);
+
+	// エフェクトの順序を移動します (call_read_section利用不可)
+	// ※エフェクト種別がフィルタ効果の場合に順序を移動出来ます
+	// object	: エフェクトの順序を移動するオブジェクトのハンドル
+	// effect	: 順序を移動するエフェクトのハンドル
+	// index	: 移動目標の順序のインデックス
+	// 戻り値	: 移動処理後の順序のインデックス (対象が見つからない場合は-1を返却)
+	int (*move_effect)(OBJECT_HANDLE object, EFFECT_HANDLE effect, int index);
+
+	// エフェクトの汎用データ項目の値を取得します
+	// effect	: エフェクトのハンドル
+	// item		: 対象の設定項目の名称 (エイリアスファイルのキーの名称)
+	// data		: 汎用データの格納先へのポインタ
+	// size		: 汎用データの格納先のサイズ ※実際のサイズと異なる場合はサイズ分のみ取得されます
+	// 戻り値	: 取得出来た汎用データのサイズ (取得出来ない場合は0を返却)
+	//			  dataがnullptrの場合は汎用データのサイズを返却します
+	int (*get_effect_data_value)(EFFECT_HANDLE effect, LPCWSTR item, void *data, int size);
+
+	// エフェクトの汎用データ項目の値を設定します (call_read_section利用不可)
+	// effect	: エフェクトのハンドル
+	// item		: 対象の設定項目の名称 (エイリアスファイルのキーの名称)
+	// data		: 設定する汎用データへのポインタ
+	// size		: 設定する汎用データのサイズ
+	// 戻り値	: 設定出来た場合はtrue (対象が見つからない場合は失敗します)
+	bool (*set_effect_data_value)(EFFECT_HANDLE effect, LPCWSTR item, void* data, int size);
+
+	// 編集データを編集済み状態に設定する ※通常は自動的に設定されます
+	void (*set_edited_state)();
+
+	// マークされているフレームの一覧を取得します
+	// frame_list	: フレーム番号リストの格納先へのポインタ
+	// frame_num	: フレーム番号リストの格納先の数
+	// 戻り値		: 取得出来たフレーム番号の数
+	//				  frame_listがnullptrの場合はマークされているフレームの数を返却します
+	int (*get_mark_frame_list)(int* frame_list, int frame_num);
+
+	// 指定フレームのマークのメモを取得します
+ 	// frame	: マークのメモを取得するフレームの番号
+	// 戻り値	: マークのメモへのポインタ (取得出来ない場合はnullptrを返却)　
+	//			  ※マークを編集するかコールバック処理の終了まで有効
+	LPCWSTR (*get_mark_frame_memo)(int frame);
+
+	// 指定フレームをマークします (call_read_section利用不可)
+	// 既にマークされている場合はメモを更新します
+	// frame	: マークを設定するフレームの番号
+	// memo		: マークのメモ (nullptrを指定すると空を設定します)
+	void (*set_mark_frame)(int frame, LPCWSTR memo);
+
+	// 指定フレームのマークを解除します (call_read_section利用不可)
+	// frame	: マークを解除するフレームの番号
+	void (*clear_mark_frame)(int frame);
+
+	// 指定フレームのマークを移動します (call_read_section利用不可)
+	// frame	: マークを移動するフレームの番号
+	// frame_to	: マークの移動先のフレームの番号
+	// 戻り値	: 移動定出来た場合はtrue  (移動元がマーク未設定、移動先がマーク済みの場合は失敗します)
+	bool (*move_mark_frame)(int frame, int frame_to);
+
+	// 指定のパレットの情報を設定します (call_read_section利用不可)
+	// ※パレットファイルの保存とリロード処理をします
+	// name			: パレット名
+	// info			: パレット情報へのポインタ
+	// info_size	: パレット情報のサイズ ※PALETTE_INFOのサイズ
+	// 戻り値		: 取得出来た場合はtrue (対象が見つからない場合は失敗します)
+	bool (*set_palette_info)(LPCWSTR name, PALETTE_INFO* info, int info_size);
 
 };
 
@@ -703,8 +770,8 @@ struct EDIT_HANDLE {
 
 	// 現在のシーンの映像のレンダリングをします
 	// この関数はレンダリングのタスクを追加するのみで完了します
-	// レンダリング完了時はレンダリング用スレッドからコールバック関数が呼ばれます
-	// frame						: レンダリング対象のフレーム
+	// レンダリング完了時はイベント通知スレッドからコールバック関数が呼ばれます
+	// frame						: レンダリング対象のフレーム番号
 	// param						: 任意のユーザーデータのポインタ
 	// func_proc_rendering_video	: レンダリング完了時に呼ばれるコールバック関数
 	//	buffer						: レンダリングした画像データへのポインタ ※PIXEL_RGBA形式
@@ -715,8 +782,8 @@ struct EDIT_HANDLE {
 
 	// 現在のシーンの音声のレンダリングをします
 	// この関数はレンダリングのタスクを追加するのみで完了します
-	// レンダリング完了時はレンダリング用スレッドからコールバック関数が呼ばれます
-	// frame						: レンダリング対象のフレーム
+	// レンダリング完了時はイベント通知スレッドからコールバック関数が呼ばれます
+	// frame						: レンダリング対象のフレーム番号
 	// param						: 任意のユーザーデータのポインタ
 	// func_proc_rendering_audio	: レンダリング完了時に呼ばれるコールバック関数
 	//	buffer0						: レンダリングした音声データ(左チャンネル)へのポインタ ※PCM(float)32bit形式
@@ -739,6 +806,44 @@ struct EDIT_HANDLE {
 	// param					: 任意のユーザーデータのポインタ
 	// func_proc_enum_palette	: パレット名の取得処理のコールバック関数
 	void (*enum_palette_name)(void* param, void (*func_proc_enum_palette)(void* param, LPCWSTR name));
+
+	// 指定のオブジェクトの映像のレンダリングをします
+	// この関数はレンダリングのタスクを追加するのみで完了します
+	// レンダリング完了時はイベント通知スレッドからコールバック関数が呼ばれます
+	// object						: レンダリング対象のオブジェクトのハンドル
+	// frame						: レンダリング対象のフレーム番号
+	// apply_effect					: 追加のフィルタ効果を反映するか？ ※グループ制御の追加効果は反映されません
+	// param						: 任意のユーザーデータのポインタ
+	// func_proc_rendering_video	: レンダリング完了時に呼ばれるコールバック関数
+	//	buffer						: レンダリングした画像データへのポインタ ※PIXEL_RGBA形式
+	//	width,height				: レンダリングした画像サイズ
+	//	pitch						: レンダリングした画像データの横1ラインのバイト数
+	// 戻り値						: レンダリング要求が成功した場合はtrue (対象外のオブジェクトや出力中等は失敗します)
+	bool (*rendering_object_video)(OBJECT_HANDLE object, int frame, bool apply_effect, void* param, void (*func_proc_rendering_video)(void* param, int frame, const void* buffer, int width, int height, int pitch));
+
+	// 指定のオブジェクトの音声のレンダリングをします
+	// この関数はレンダリングのタスクを追加するのみで完了します
+	// レンダリング完了時はイベント通知スレッドからコールバック関数が呼ばれます
+	// object						: レンダリング対象のオブジェクトのハンドル
+	// frame						: レンダリング対象のフレーム番号
+	// apply_effect					: 追加のフィルタ効果を反映するか？ ※グループ制御の追加効果は反映されません
+	// param						: 任意のユーザーデータのポインタ
+	// func_proc_rendering_audio	: レンダリング完了時に呼ばれるコールバック関数
+	//	buffer0						: レンダリングした音声データ(左チャンネル)へのポインタ ※PCM(float)32bit形式
+	//	buffer1						: レンダリングした音声データ(右チャンネル)へのポインタ ※PCM(float)32bit形式
+	//	sample_num					: レンダリングした音声のサンプル数
+	// 戻り値						: レンダリング要求が成功した場合はtrue (出力中等は失敗します)
+	bool (*rendering_object_audio)(OBJECT_HANDLE object, int frame, bool apply_effect, void* param, void (*func_proc_rendering_audio)(void* param, int frame, const float* buffer0, const float* buffer1, int sample_num));
+
+	// 指定の設定項目が所属するグループの所属アイテム名を取得します
+	// effect		: 対象のエフェクト名 (エイリアスファイルのeffect.nameの値)
+	// item			: 対象の設定項目の名称 (エイリアスファイルのキーの名称)
+	// item_names	: グループの所属アイテム名の格納先へのポインタ
+	// item_num		: グループの所属アイテム名の格納先の数
+	// item_index	: 対象の設定項目のグループ内のインデックスの格納先へのポインタ (nullptrの場合は格納しません)
+	// 戻り値		: 取得出来た所属アイテム名の数 (グループに所属していない場合は0を返却)
+	//				  item_namesがnullptrの場合は所属アイテム数を返却します
+	int (*get_effect_item_group_names)(LPCWSTR effect, LPCWSTR item, LPCWSTR* item_names, int item_num, int* item_index);
 
 };
 
@@ -802,6 +907,7 @@ struct HOST_APP_TABLE {
 
 	// フィルタプラグインを登録する
 	// filter_plugin_table	: フィルタプラグイン構造体
+	// ※FLAG_USERDATAを利用する場合は編集リソースが破棄されてからUninitializePlugin()が呼ばれます
 	void (*register_filter_plugin)(FILTER_PLUGIN_TABLE* filter_plugin_table);
 
 	// スクリプトモジュールを登録する
@@ -941,7 +1047,7 @@ struct HOST_APP_TABLE {
 	void (*register_font_collection)(IDWriteFontCollection* collection);
 
 	// 指定のイベントのコールバック関数を登録する
-	// コールバック関数はイベント用スレッドから呼ばれます
+	// コールバック関数はイベント通知スレッドから呼ばれます
 	// イベント処理からcall_edit_section()は利用出来ません
 	// event			: イベント種別
 	// func_proc_event	: イベント処理のコールバック関数
