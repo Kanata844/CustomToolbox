@@ -98,7 +98,7 @@ LRESULT CALLBACK MainWindow::wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LP
 							edit->create_object(validEffects[index].name.c_str(), layer, frame, nextStart - frame);
 						}
 						else {
-							if (validEffects[index].flag == edit_handle->EFFECT_TYPE_FILTER) {
+							if (validEffects[index].flag & edit_handle->EFFECT_TYPE_FILTER) {
 								edit->create_effect(nextObject, validEffects[index].name.c_str());
 							}
 						}

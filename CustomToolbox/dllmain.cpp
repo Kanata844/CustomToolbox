@@ -24,7 +24,7 @@ CONFIG_HANDLE* config;
 //---------------------------------------------------------------------
 COMMON_PLUGIN_TABLE common_plugin_table = {
 	L"CustomToolbox",								// プラグインの名前
-	L"CustomToolbox ver.0.1 by Kanata",		// プラグインの情報
+	L"CustomToolbox Ver.1.0.0 by Kanata",		// プラグインの情報
 };
 
 //---------------------------------------------------------------------
