@@ -8,7 +8,7 @@ AviUtl ExEdit2用のプラグインです。エフェクトをタイムライン
 を使用しています。偉大な先人に感謝。
 
 ## 使用方法
-Releaseから最新のzipファイルをダウンロードし、解凍してCustomToolbox.aux2をプラグインフォルダに配置してください。
+Releasesから最新のzipファイルをダウンロードし、解凍してCustomToolbox.aux2をプラグインフォルダに配置してください。
 
 ## 開発方法
 Visual Studioをインストールし、編集します。外部ライブラリは、CustomToolbox/include/ThirdPartyフォルダに配置してください。
