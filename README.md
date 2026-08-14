@@ -2,8 +2,8 @@
 AviUtl ExEdit2用のプラグインです。エフェクトをタイムラインにドラッグ&ドロップで追加できます。
 
 ## 使用ライブラリ
-KENくん氏のAviUtl ExEdit2 Plugin SDK([AviUtlのお部屋](https://spring-fragrance.mints.ne.jp/aviutl/)からダウンロードできます)
-nlohmann氏の[jsonライブラリ](https://github.com/nlohmann/json/tree/develop)
+- KENくん氏のAviUtl ExEdit2 Plugin SDK([AviUtlのお部屋](https://spring-fragrance.mints.ne.jp/aviutl/)からダウンロードできます)
+- nlohmann氏の[jsonライブラリ](https://github.com/nlohmann/json/tree/develop)
 
 を使用しています。偉大な先人に感謝。
 
